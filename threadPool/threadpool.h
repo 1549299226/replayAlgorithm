@@ -27,6 +27,8 @@ typedef struct threadpool_t
 
     //线程池中的线程
     pthread_t *threadIds;
+    //线程池中的管理线程
+    pthread_t managerThread;
     //最小的线程数
     int minThreads;
     //最大的线程数
@@ -50,6 +52,12 @@ typedef struct threadpool_t
 
     //条件变量:任务队列有空位 可以继续放
     pthread_cond_t notFull;
+
+    //离开的线程数
+    int exitThreadNums;
+
+    //关闭线程池
+    int shutDown;
     
 }threadpool_t;
 
