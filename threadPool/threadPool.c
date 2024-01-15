@@ -39,9 +39,19 @@ void * threadHander(void * arg)
         pthread_mutex_unlock(&(pool->mutexpool));
         //发送一个信号给盛产这 告诉他可以继续生产
         pthread_cond_signal(&(pool->notFull));
-        
+
+
+
+        //为了提升性能，在创建一把只维护busyNum属性的锁
+        pthread_mutex_lock(&pool->mutexBusy);
+        pool->busyThreadNums++;
+        pthread_mutex_unlock(&(pool->mutexBusy));
         //执行回调函数    
-        tmpTask.worker_hander(tmpTask.arg);   
+        tmpTask.worker_hander(tmpTask.arg); 
+
+        //没打完少三句
+    pthread_mutex_hander();
+
     }
     pthread_exit(NULL);
 }
@@ -65,6 +75,9 @@ int threadPoolInit(threadpool_t *pool, min minThreads, int maxThreads, int queue
         //更新线程池属性
         pool->minThreads = minThreads;
         pool->maxThreads = maxThreads;
+        
+        //干活的线程为零
+        pool->busyThreadNums = 0;
 
         //判断合法性
         if (queueCapacity <= 0)
@@ -114,10 +127,28 @@ int threadPoolInit(threadpool_t *pool, min minThreads, int maxThreads, int queue
         {
             break;
         }
+        //此ret 是创建线程数
+        if (ret != 0)
+        {
+            
+        }
+        
+
+
         //初始化所资源
         pthread_mutex_init(&(pool->mutexpool), NULL);
-        pthread_cond_init(&(pool->notEmpty), NULL);
-        pthread_cond_init(&(pool-notFull), NULL);
+       // pthread_mutex_t mutexBusy;
+        pthread_mutex_init(&(pool->mutexBusy), NULL);
+        //初始化所资源
+        if (pthread_cond_init(&(pool->notEmpty), NULL) != 0 || pthread_cond_init(&(pool->notFull), NULL) != 0)
+        {
+            perror("thread cond error");
+        }
+          
+        
+        
+        // pthread_cond_init(&(pool->notEmpty), NULL);
+        // pthread_cond_init(&(pool-notFull), NULL);
 
         return ON_SUCCESS;
     } while(0);
@@ -144,8 +175,44 @@ int threadPoolInit(threadpool_t *pool, min minThreads, int maxThreads, int queue
         free(pool->threadIds);
         pool->threadIds = NULL;
     }
+
+    pthread_mutex_destroy(&(pool->mutexpool));
+    pthread_mutex_destroy(&(pool->mutexBusy));
+
+    //释放 条件变量的资源
+    pthread_cond_destroy(&(pool->notEmpty));
+    pthread_cond_destroy(&(pool->notFull));
     return UNKNOWN_ERROR;
 }   
+
+int threadPoolAddtask(threadpool_t *pool, void *(*woreker_hander)(void *), void *arg)
+{
+    if (pool == NULL)
+    {
+        return NULL_PTR;
+    }
+
+    pthread_mutex_lock(&(pool->mutexpool));
+    //任务队列满了
+    while (pool->queueSize == pool->queueCapacity)
+    {
+        pthread_cond_wait(&(pool->notFull), &(pool->mutexpool));
+    }
+    //程序到这个地方一定有位置可以放任务
+    pool->taskQueue[pool->queueRear].worker_hander = woreker_hander;
+    pool->taskQueue[pool->queueRear].arg = arg;
+
+    //将任务队列的队尾向后移动
+    pool->queueRear = (pool->queueRear + 1) % pool->queueCapacity;
+    //任务数加一
+    pool->queueSize++;
+    pthread_mutex_unlock(&(pool->mutexpool));
+    //发信号
+    pthread_cond_signal(&(pool->notEmpty));
+
+    return ON_SUCCESS;
+
+}
 
 
 
