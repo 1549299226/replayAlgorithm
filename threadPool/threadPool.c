@@ -57,7 +57,7 @@ static void * threadHander(void * arg)
             {
                 //离开减一
                 pool->exitThreadNums--;
-                if (pool->liveThreadNums . pool.minThreads)
+                if (pool->liveThreadNums > pool->minThreads)
                 {
                     threadExitClrResources(pool);
                     //线程退出
@@ -77,7 +77,7 @@ static void * threadHander(void * arg)
         pool->queueSize--;
         //解锁
         pthread_mutex_unlock(&(pool->mutexpool));
-        //发送一个信号给盛产这 告诉他可以继续生产
+        //发送一个信号给生产者 告诉他可以继续生产
         pthread_cond_signal(&(pool->notFull));
 
 
@@ -89,7 +89,7 @@ static void * threadHander(void * arg)
         //执行回调函数    
         tmpTask.worker_hander(tmpTask.arg); 
 
-        //释放占空间
+        //释放栈空间
         pthread_mutex_lock(&pool->mutexBusy);
         pool->busyThreadNums--;
         pthread_mutex_unlock(&pool->mutexBusy);
@@ -180,7 +180,7 @@ static void * mangerHander(void * arg)
 }
 
 //线程池初始化
-int threadPoolInit(threadpool_t *pool, min minThreads, int maxThreads, int queueCapacity)
+int threadPoolInit(threadpool_t *pool, int minThreads, int maxThreads, int queueCapacity)
 {
     if (pool == NULL)
     {
@@ -213,7 +213,7 @@ int threadPoolInit(threadpool_t *pool, min minThreads, int maxThreads, int queue
         pool->queueFront = 0;
         pool->queueRear = 0;
         pool->queueSize = 0;
-        pool->taskQueue = (task_t *)malloc(sizeof(task_t) * pool->taskQueue);
+        pool->taskQueue = (task_t *)malloc(sizeof(task_t) * pool->queueCapacity);
         if (pool->taskQueue == NULL)
         {
             perror("malloc error");
@@ -264,11 +264,11 @@ int threadPoolInit(threadpool_t *pool, min minThreads, int maxThreads, int queue
         
 
 
-        //初始化所资源
+        //初始化锁资源
         pthread_mutex_init(&(pool->mutexpool), NULL);
        // pthread_mutex_t mutexBusy;
         pthread_mutex_init(&(pool->mutexBusy), NULL);
-        //初始化所资源
+        //初始化信号量资源
         if (pthread_cond_init(&(pool->notEmpty), NULL) != 0 || pthread_cond_init(&(pool->notFull), NULL) != 0)
         {
             perror("thread cond error");

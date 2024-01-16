@@ -62,7 +62,7 @@ typedef struct threadpool_t
 }threadpool_t;
 
 //线程池初始化
-int threadPoolInit(threadpool_t *pool, min minThreads, int maxThreads);
+int threadPoolInit(threadpool_t *pool, min minThreads, int maxThreads, int queueCapacity);
 
 //线程池添加任务
 int threadPoolAddtask(threadpool_t *pool, void *(*woreker_hander)(void *), void *arg);
