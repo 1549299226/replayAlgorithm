@@ -66,9 +66,13 @@ int main()
     timeValue.tv_usec = 0; 
     #endif
 
+    fd_set tmpReadSet;
+    bzero(&tmpReadSet, sizeof(tmpReadSet));
     while (1)
     {
-        ret = select(maxfd +1, &readSet, NULL, NULL, NULL);
+        //备份读集合
+        tmpReadSet = readSet;
+        ret = select(maxfd +1, &tmpReadSet, NULL, NULL, NULL);
         if (ret == -1)
         {
             perror("select error");
@@ -76,7 +80,7 @@ int main()
         }
         
         //如果sockfd在readSet集合里面
-        if (FD_ISSET(sockfd, &readSet))
+        if (FD_ISSET(sockfd, &tmpReadSet))
         {
             int acceptfd = accept(sockfd, NULL, NULL);
             if (acceptfd == -1)
@@ -94,7 +98,7 @@ int main()
         //程序至此：说明可能有通信
         for (int idx = 0; idx <= maxfd; idx++)
         {
-            if (idx != sockfd && FD_ISSET(idx, &readSet))
+            if (idx != sockfd && FD_ISSET(idx, &tmpReadSet))
             {
                 char buffer[BUFFER_SIZE];
                 bzero(buffer, sizeof(buffer));
@@ -107,7 +111,7 @@ int main()
                     //将该通信句柄从监听的读集合中删掉
                     FD_CLR(idx, &readSet);
                     close(idx);
-                    //这边要做成continue。。，让下一个已read的fd句柄进行通信
+                    //这边要做成continue。。，让下一个已ready的fd句柄进行通信
                     continue;
                 }
                 else if (readBytes == 0)
